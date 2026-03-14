@@ -24,6 +24,9 @@ def detect_file_type(file_path):
         return "ELF (Linux Binary)"
     return "Unknown"
 
+    with open("logs/strings.txt", "w") as f:
+        for s in strings:
+            f.write(s + "\n")
 
 def main():
     print_banner()
