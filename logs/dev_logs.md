@@ -16,3 +16,7 @@
 - Attempts to output the first 20 strings for reading
 - 'extract_strings(file_path)'
 - Tested on Windows
+
+## Day 4, 2026-March-15
+- Fixed 'main.py' with adding string function, removed a repeated 'def' 
+- Working...

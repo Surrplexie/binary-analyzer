@@ -2,6 +2,9 @@ import sys
 import os
 
 
+from string_extractor import extract_strings
+
+
 def print_banner():
     print("Binary Analyzer v0.1")
     print("---------------------")
@@ -24,9 +27,6 @@ def detect_file_type(file_path):
         return "ELF (Linux Binary)"
     return "Unknown"
 
-    with open("logs/strings.txt", "w") as f:
-        for s in strings:
-            f.write(s + "\n")
 
 def main():
     print_banner()
@@ -46,6 +46,16 @@ def main():
     file_info(file_path)
     file_type = detect_file_type(file_path)
     print(f"File Type: {file_type}")
+
+    # -------------------------------
+    # Extract strings from binary
+    strings = extract_strings(file_path)
+
+    print("\nStrings Found (first 10)")
+    print("------------------------")
+
+    for s in strings[:10]:
+        print(s)
     # -------------------------------
 
 
