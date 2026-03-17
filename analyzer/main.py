@@ -3,6 +3,8 @@ import os
 
 
 from string_extractor import extract_strings
+from pe_parser import parse_pe
+from indicators import find_suspicious_strings
 
 
 def print_banner():
@@ -57,6 +59,25 @@ def main():
     for s in strings[:10]:
         print(s)
     # -------------------------------
+
+
+    def section(title):
+        print(f"\n{title}")
+        print("-" * len(title))
+
+
+    pe_info = parse_pe(file_path)
+    if pe_info:
+        print("\nPE Info")
+        print("--------")
+        print(f"Architecture: {pe_info['arch']}")
+
+
+    suspicious = find_suspicious_strings(strings)
+    print("\nSuspicious Indicators")
+    print("---------------------")
+    for s in suspicious[:10]:
+        print(s)
 
 
 if __name__ == "__main__":

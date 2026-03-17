@@ -19,4 +19,7 @@
 
 ## Day 4, 2026-March-15
 - Fixed 'main.py' with adding string function, removed a repeated 'def' 
+- Made the output for the first 10 strings to print successfully
+
+## Day 5, 2026-March-16
 - Working...
