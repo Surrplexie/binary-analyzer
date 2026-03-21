@@ -16,4 +16,4 @@ def find_suspicious_strings(strings):
             if keyword.lower() in s.lower():
                 found.append(s)
 
-    return found
+    return list(set(found))
