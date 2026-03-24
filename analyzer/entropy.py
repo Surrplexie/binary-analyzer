@@ -1,8 +1,7 @@
 import math
 
-def calculate_entropy(file_path):
-    with open(file_path, "rb") as f:
-        data = f.read()
+def calculate_entropy_bytes(data):
+    import math
 
     if not data:
         return 0
@@ -16,8 +15,8 @@ def calculate_entropy(file_path):
     for count in byte_counts:
         if count == 0:
             continue
-
         p = count / len(data)
         entropy -= p * math.log2(p)
 
     return entropy
+
