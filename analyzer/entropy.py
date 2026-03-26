@@ -1,6 +1,6 @@
 import math
 
-def calculate_entropy_bytes(data):
+def calculate_entropy(data):
     import math
 
     if not data:

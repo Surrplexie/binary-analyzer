@@ -5,8 +5,6 @@ from string_extractor import extract_strings
 from entropy import calculate_entropy
 from pe_parser import parse_pe
 from indicators import find_suspicious_strings
-from entropy import calculate_entropy_bytes
-
 
 def print_banner():
     print("Binary Analyzer v0.2")
