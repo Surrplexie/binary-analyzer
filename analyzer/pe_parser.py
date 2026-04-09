@@ -46,5 +46,4 @@ def parse_pe(file_path):
     return {
         "arch": arch,
         "sections": sections,
-        "imports": imports
     }
