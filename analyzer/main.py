@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import csv
 import argparse
 import hashlib
 import shutil
@@ -33,6 +34,13 @@ def detect_file_type(file_path):
     if magic.startswith(b"\x7fELF"):
         return "ELF (Linux Binary)"
     return "Unknown"
+
+def classify_risk_level(suspicion_score, suspicious_count):
+    if suspicion_score >= 40 or suspicious_count >= 5:
+        return "HIGH"
+    if suspicion_score >= 20 or suspicious_count >= 2:
+        return "MEDIUM"
+    return "LOW"
 
 def sha256_file(file_path):
     hasher = hashlib.sha256()
@@ -101,9 +109,176 @@ def append_manifest(manifest_path, results, isolation_result, threshold):
     with open(manifest_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(event) + "\n")
 
+def read_manifest_entries(manifest_path):
+    entries = []
+    if not os.path.exists(manifest_path):
+        return entries
+
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return entries
+
+def list_quarantine_files(quarantine_dir):
+    if not os.path.isdir(quarantine_dir):
+        return []
+
+    files = []
+    for name in sorted(os.listdir(quarantine_dir)):
+        path = os.path.join(quarantine_dir, name)
+        if os.path.isfile(path) and name.endswith(".quarantine"):
+            size = os.path.getsize(path)
+            sha256 = name.split("_", 1)[0] if "_" in name else None
+            files.append({
+                "name": name,
+                "path": path,
+                "size_bytes": size,
+                "sha256": sha256,
+            })
+    return files
+
+def restore_from_quarantine(quarantine_dir, sha256_prefix):
+    result = {
+        "attempted": True,
+        "restored": False,
+        "source": None,
+        "destination": None,
+        "error": None,
+    }
+
+    manifest_path = os.path.join(quarantine_dir, "manifest.jsonl")
+    entries = read_manifest_entries(manifest_path)
+
+    target_file = None
+    for item in list_quarantine_files(quarantine_dir):
+        if item["sha256"] and item["sha256"].lower().startswith(sha256_prefix.lower()):
+            target_file = item
+            break
+
+    if not target_file:
+        result["error"] = f"No quarantined file found for hash prefix: {sha256_prefix}"
+        return result
+
+    source_path = target_file["path"]
+    source_hash = target_file["sha256"]
+    destination_path = None
+
+    for entry in reversed(entries):
+        if entry.get("sha256") == source_hash and entry.get("original_path"):
+            destination_path = entry["original_path"]
+            break
+
+    if not destination_path:
+        result["error"] = f"No original path recorded for hash: {source_hash}"
+        return result
+
+    destination_parent = os.path.dirname(destination_path)
+    if destination_parent:
+        os.makedirs(destination_parent, exist_ok=True)
+    if os.path.exists(destination_path):
+        result["error"] = f"Destination already exists: {destination_path}"
+        return result
+
+    try:
+        os.chmod(source_path, 0o666)
+        shutil.move(source_path, destination_path)
+        result["restored"] = True
+        result["source"] = source_path
+        result["destination"] = destination_path
+        return result
+    except Exception as e:
+        result["error"] = str(e)
+        return result
+
+def delete_from_quarantine(quarantine_dir, sha256_prefix):
+    result = {
+        "attempted": True,
+        "deleted": False,
+        "path": None,
+        "error": None,
+    }
+
+    target_file = None
+    for item in list_quarantine_files(quarantine_dir):
+        if item["sha256"] and item["sha256"].lower().startswith(sha256_prefix.lower()):
+            target_file = item
+            break
+
+    if not target_file:
+        result["error"] = f"No quarantined file found for hash prefix: {sha256_prefix}"
+        return result
+
+    try:
+        os.chmod(target_file["path"], 0o666)
+        os.remove(target_file["path"])
+        result["deleted"] = True
+        result["path"] = target_file["path"]
+        return result
+    except Exception as e:
+        result["error"] = str(e)
+        return result
+
+def export_manifest_csv(quarantine_dir, output_path=None):
+    result = {
+        "attempted": True,
+        "exported": False,
+        "csv_path": None,
+        "rows": 0,
+        "error": None,
+    }
+    manifest_path = os.path.join(quarantine_dir, "manifest.jsonl")
+    entries = read_manifest_entries(manifest_path)
+
+    if not entries:
+        result["error"] = f"No manifest entries found at: {manifest_path}"
+        return result
+
+    csv_path = output_path or os.path.join(quarantine_dir, "manifest.csv")
+    fieldnames = [
+        "timestamp_utc",
+        "original_path",
+        "quarantine_path",
+        "sha256",
+        "file_size",
+        "suspicion_score",
+        "matched_imports",
+        "matched_keywords",
+        "trigger_reason",
+        "status",
+        "error",
+    ]
+
+    try:
+        parent = os.path.dirname(csv_path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+
+        with open(csv_path, "w", encoding="utf-8", newline="") as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            writer.writeheader()
+            for entry in entries:
+                row = dict(entry)
+                row["matched_imports"] = ",".join(entry.get("matched_imports", []))
+                row["matched_keywords"] = ",".join(entry.get("matched_keywords", []))
+                writer.writerow({key: row.get(key) for key in fieldnames})
+
+        result["exported"] = True
+        result["csv_path"] = csv_path
+        result["rows"] = len(entries)
+        return result
+    except Exception as e:
+        result["error"] = str(e)
+        return result
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Analyze executable binaries for RE indicators.")
-    parser.add_argument("binary_file", help="Path to the binary file to analyze")
+    parser.add_argument("binary_file", nargs="?", help="Path to the binary file to analyze")
     parser.add_argument(
         "--json",
         action="store_true",
@@ -131,6 +306,28 @@ def parse_args():
         "--quarantine-dir",
         default="quarantine",
         help="Directory where isolated files and manifest are stored (default: quarantine)",
+    )
+    parser.add_argument(
+        "--list-quarantine",
+        action="store_true",
+        help="List files currently isolated in the quarantine directory",
+    )
+    parser.add_argument(
+        "--restore",
+        dest="restore_sha256",
+        help="Restore an isolated file by SHA256 prefix from the quarantine directory",
+    )
+    parser.add_argument(
+        "--delete-from-quarantine",
+        dest="delete_sha256",
+        help="Permanently delete a quarantined file by SHA256 prefix",
+    )
+    parser.add_argument(
+        "--export-manifest-csv",
+        nargs="?",
+        const="",
+        dest="export_manifest_csv",
+        help="Export quarantine manifest.jsonl to CSV (optional output path)",
     )
     return parser.parse_args()
 
@@ -182,6 +379,9 @@ def build_results(file_path, max_strings):
         },
         "pe_info": pe_info,
         "suspicious_indicators": suspicious[:max_strings],
+        "risk": {
+            "level": classify_risk_level(suspicion_score, len(suspicious)),
+        },
         "isolation": {
             "attempted": False,
             "performed": False,
@@ -217,6 +417,9 @@ def print_human_results(results, max_strings):
         if score > 20:
             print("[!] Warning: High number of sensitive API imports detected.")
 
+    section("Risk Level")
+    print(results["risk"]["level"])
+
     section("Entropy Analysis")
     print(f"Entropy Score: {results['entropy']['score']:.2f}")
     print(f"Status: {results['entropy']['status']}")
@@ -244,6 +447,64 @@ def main():
     args = parse_args()
     file_path = args.binary_file
     max_strings = max(args.max_strings, 0)
+
+    if args.list_quarantine:
+        files = list_quarantine_files(args.quarantine_dir)
+        if args.as_json:
+            print(json.dumps({"quarantine_dir": args.quarantine_dir, "files": files}, indent=2))
+            return
+        print_banner()
+        section("Quarantine Files")
+        if not files:
+            print("No isolated files found.")
+            return
+        for item in files:
+            print(f"- {item['name']} ({item['size_bytes']} bytes)")
+        return
+
+    if args.restore_sha256:
+        restore_result = restore_from_quarantine(args.quarantine_dir, args.restore_sha256)
+        if args.as_json:
+            print(json.dumps({"quarantine_dir": args.quarantine_dir, "restore": restore_result}, indent=2))
+            return
+        print_banner()
+        section("Restore")
+        if restore_result["restored"]:
+            print(f"Restored: {restore_result['destination']}")
+        else:
+            print(f"Restore failed: {restore_result['error']}")
+        return
+
+    if args.delete_sha256:
+        delete_result = delete_from_quarantine(args.quarantine_dir, args.delete_sha256)
+        if args.as_json:
+            print(json.dumps({"quarantine_dir": args.quarantine_dir, "delete": delete_result}, indent=2))
+            return
+        print_banner()
+        section("Delete")
+        if delete_result["deleted"]:
+            print(f"Deleted: {delete_result['path']}")
+        else:
+            print(f"Delete failed: {delete_result['error']}")
+        return
+
+    if args.export_manifest_csv is not None:
+        output_path = args.export_manifest_csv if args.export_manifest_csv else None
+        export_result = export_manifest_csv(args.quarantine_dir, output_path)
+        if args.as_json:
+            print(json.dumps({"quarantine_dir": args.quarantine_dir, "export": export_result}, indent=2))
+            return
+        print_banner()
+        section("Export Manifest CSV")
+        if export_result["exported"]:
+            print(f"Exported: {export_result['csv_path']} ({export_result['rows']} rows)")
+        else:
+            print(f"Export failed: {export_result['error']}")
+        return
+
+    if not file_path:
+        print("Error: missing binary_file. Provide a file to analyze, or use quarantine commands.")
+        sys.exit(1)
 
     if not os.path.exists(file_path):
         print(f"Error: File '{file_path}' does not exist")
