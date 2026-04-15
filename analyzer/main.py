@@ -1,5 +1,7 @@
-import sys
 import os
+import sys
+import json
+import argparse
 
 from string_extractor import extract_strings
 from entropy import calculate_entropy, entropy_verdict
@@ -29,71 +31,125 @@ def detect_file_type(file_path):
         return "ELF (Linux Binary)"
     return "Unknown"
 
-def main():
+def parse_args():
+    parser = argparse.ArgumentParser(description="Analyze executable binaries for RE indicators.")
+    parser.add_argument("binary_file", help="Path to the binary file to analyze")
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="as_json",
+        help="Output machine-readable JSON instead of human-readable text",
+    )
+    parser.add_argument(
+        "--max-strings",
+        type=int,
+        default=10,
+        help="Number of extracted strings to preview (default: 10)",
+    )
+    return parser.parse_args()
+
+def build_results(file_path, max_strings):
+    size = os.path.getsize(file_path)
+    file_type = detect_file_type(file_path)
+    strings = extract_strings(file_path)
+
+    imports = []
+    suspicion_score = 0
+    import_analysis_error = None
+    try:
+        imports = get_imports(file_path)
+        if imports:
+            suspicion_score = calculate_suspicion_score(imports)
+    except Exception as e:
+        import_analysis_error = str(e)
+
+    entropy = calculate_entropy(file_path)
+    verdict = entropy_verdict(entropy)
+
+    pe_info = None
+    if file_type.startswith("PE"):
+        pe_info = parse_pe(file_path)
+    suspicious = find_suspicious_strings(strings)
+
+    return {
+        "file_path": file_path,
+        "file_info": {
+            "size_bytes": size,
+        },
+        "file_type": file_type,
+        "strings": {
+            "total_found": len(strings),
+            "preview": strings[:max_strings],
+        },
+        "imports": {
+            "count": len(imports),
+            "suspicion_score": suspicion_score,
+            "analysis_error": import_analysis_error,
+        },
+        "entropy": {
+            "score": entropy,
+            "status": verdict,
+        },
+        "pe_info": pe_info,
+        "suspicious_indicators": suspicious[:max_strings],
+    }
+
+def print_human_results(results, max_strings):
     print_banner()
+    print(f"Analyzing file: {results['file_path']}")
 
-    if len(sys.argv) < 2:
-        print("Usage: python main.py <binary_file>")
-        sys.exit(1)
+    section("File Info")
+    print(f"Size: {results['file_info']['size_bytes']} bytes")
 
-    file_path = sys.argv[1]
+    section("File Type")
+    print(results["file_type"])
+
+    section(f"Strings Found (first {max_strings})")
+    for s in results["strings"]["preview"]:
+        print(s)
+
+    section("Import Analysis")
+    if results["imports"]["analysis_error"]:
+        print(f"Could not analyze imports: {results['imports']['analysis_error']}")
+    elif results["imports"]["count"] == 0:
+        print("No imports found or not a dynamic binary.")
+    else:
+        score = results["imports"]["suspicion_score"]
+        print(f"Total Suspicion Score: {score}")
+        if score > 20:
+            print("[!] Warning: High number of sensitive API imports detected.")
+
+    section("Entropy Analysis")
+    print(f"Entropy Score: {results['entropy']['score']:.2f}")
+    print(f"Status: {results['entropy']['status']}")
+
+    if results["pe_info"]:
+        section("PE Info")
+        print(f"Architecture: {results['pe_info']['arch']}")
+
+    section("Suspicious Indicators")
+    if results["suspicious_indicators"]:
+        for s in results["suspicious_indicators"]:
+            print(f"[!] {s}")
+    else:
+        print("None found")
+
+def main():
+    args = parse_args()
+    file_path = args.binary_file
+    max_strings = max(args.max_strings, 0)
 
     if not os.path.exists(file_path):
         print(f"Error: File '{file_path}' does not exist")
         sys.exit(1)
 
-    print(f"Analyzing file: {file_path}")
+    results = build_results(file_path, max_strings)
 
-    # 1. Basic File Info
-    file_info(file_path)
+    if args.as_json:
+        print(json.dumps(results, indent=2))
+        return
 
-    # 2. File Type Detection
-    file_type = detect_file_type(file_path)
-    section("File Type")
-    print(file_type)
-
-    # 3. String Extraction
-    strings = extract_strings(file_path)
-    section("Strings Found (first 10)")
-    for s in strings[:10]:
-        print(s)
-
-    # 4. Import & Behavioral Analysis
-    section("Import Analysis")
-    try:
-        imports = get_imports(file_path)
-        if imports:
-            score = calculate_suspicion_score(imports)
-            print(f"Total Suspicion Score: {score}")
-            if score > 20:
-                print("[!] Warning: High number of sensitive API imports detected.")
-        else:
-            print("No imports found or not a dynamic binary.")
-    except Exception as e:
-        print(f"Could not analyze imports: {e}")
-        
-    # 5. Entropy Analysis
-    section("Entropy Analysis")
-    entropy = calculate_entropy(file_path)
-    verdict = entropy_verdict(entropy)
-    print(f"Entropy Score: {entropy:.2f}")
-    print(f"Status: {verdict}")
-
-    # 6. PE Specific Info
-    if file_type.startswith("PE"):
-        pe_info = parse_pe(file_path)
-        if pe_info:
-            section("PE Info")
-            print(f"Architecture: {pe_info['arch']}")
-
-    # 7. Suspicious Keywords in Strings
-    suspicious = find_suspicious_strings(strings)
-    section("Suspicious Indicators")
-    if suspicious:
-        for s in suspicious[:10]:
-            print(f"[!] {s}")
-    else:
-        print("None found")
+    print_human_results(results, max_strings)
 
 if __name__ == "__main__":
     main()

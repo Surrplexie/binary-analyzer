@@ -1,6 +1,11 @@
-import lief # pip install lief
+try:
+    import lief  # pip install lief
+except ImportError:
+    lief = None
 
 def get_imports(filepath: str) -> list:
+    if lief is None:
+        raise RuntimeError("lief is not installed. Install it with: pip install lief")
     binary = lief.parse(filepath)
     if not binary:
         return []
