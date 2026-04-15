@@ -9,7 +9,22 @@ def get_imports(filepath: str) -> list:
     binary = lief.parse(filepath)
     if not binary:
         return []
-    return [sym.name for sym in binary.imported_symbols]
+
+    # LIEF APIs differ by binary format and version.
+    # Prefer imported_symbols when available, then fallback to PE import entries.
+    if hasattr(binary, "imported_symbols"):
+        return [sym.name for sym in binary.imported_symbols if getattr(sym, "name", None)]
+
+    if hasattr(binary, "imports"):
+        imports = []
+        for lib in binary.imports:
+            for entry in getattr(lib, "entries", []):
+                name = getattr(entry, "name", None)
+                if name:
+                    imports.append(name)
+        return imports
+
+    return []
 
 SUSPICIOUS_IMPORTS = {
     "ptrace":             20,
