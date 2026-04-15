@@ -6,27 +6,27 @@
 - Define project goals
 - Support PE fiiles
 
-## Day 2 0.0.12
+## Day 2 0.0.2
 - Detect executable type
 - Extract strings
 
-## Day 3 0.0.13
+## Day 3 0.0.3
 - Fixed 'main.py'
 - Added automatic logging to 'logs/strings.txt'
 - Attempts to output the first 20 strings for reading
 - 'extract_strings(file_path)'
 - Tested on Windows
 
-## Day 4 0.0.14
+## Day 4 0.0.4
 - Fixed 'main.py' with adding string function, removed a repeated 'def' 
 - Made the output for the first 10 strings to print successfully
 
-## Day 5 0.0.15
+## Day 5 0.0.5
 - Updated entropy.py
 - Fixed and reorganized main.py
 - Updated indicators.py for returning
 
-## Day 6 0.0.16
+## Day 6 0.0.6
 - Ability to use AI to improve workflow, productivity, knowledge, and skills.
 Core Logic & Feature Additions
 - Integrated LIEF Library: Added lief to indicators.py to enable deep inspection of binary import tables for both ELF and PE formats.
@@ -50,7 +50,7 @@ Next goals:
 - Create a new module hasher.py that calculates the MD5, SHA-1, and SHA-256 of the target binary.
 - Add a flag to main.py (e.g., --export) that saves the entire analysis output into a structured format like a .json file or a formatted .txt report in a reports/ folder.
 
-## Day 6 0.0.17
+## Day 6 0.0.7
 - Added a new CLI interface with --json and --max-strings options so analysis can be used in scripts/automation and tuned for different verbosity needs.
 - Refactored output generation to build one structured results object, then render either human-readable text or JSON, making behavior more consistent and easier to extend.
 - Improved resilience when lief is not installed: the tool now starts normally and reports a clear import-analysis dependency message instead of crashing at startup.
@@ -59,3 +59,11 @@ Next goals:
 - Fixed import extraction compatibility across LIEF API variants, enabling successful PE import parsing (verified with real sample output showing non-zero import counts).
 - Added build reproducibility and packaging workflow artifacts by pinning dependencies in analyzer/requirements.txt, introducing a one-command Windows build script (analyzer/build.bat), and documenting EXE build/run steps in README.md.
 - Improved release hygiene and repository cleanliness by adding .gitignore rules for virtual environment files, Python cache files, and PyInstaller build outputs (analyzer/build/, analyzer/dist/, analyzer/*.spec).
+
+## Day 7 0.0.8
+- Implemented Phase 1 quarantine isolation flow with new CLI flags (`--auto-isolate`, `--isolate-threshold`, `--quarantine-dir`) to move suspicious files into controlled manual-review storage.
+- Added SHA-256 hashing and isolation manifest logging (`manifest.jsonl`) so each isolation event records when/why a file was quarantined, file hash, score, and original path for auditability.
+- Implemented Phase 2 manual-review operations with `--list-quarantine` and `--restore <sha256_prefix>` to inspect isolated artifacts and safely restore them to their original locations.
+- Implemented Phase 3 operations with `--delete-from-quarantine` and `--export-manifest-csv` to support cleanup and reporting workflows for analysts.
+- Added risk-level tagging (`LOW`, `MEDIUM`, `HIGH`) to analysis results to provide faster triage decisions in both human-readable and JSON output modes.
+- Added synthetic binary test samples in `test-sample/` (benign + suspicious) to quickly validate detection behavior and quarantine workflows during development.
