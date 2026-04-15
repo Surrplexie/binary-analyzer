@@ -57,3 +57,5 @@ Next goals:
 -Added executable packaging support with PyInstaller and validated the generated binary-analyzer.exe end-to-end in both human-readable and --json modes on real Windows binaries.
 - Improved dependency handling for LIEF so the tool no longer hard-crashes when the library is unavailable, and now reports a clear import-analysis status in output.
 - Fixed import extraction compatibility across LIEF API variants, enabling successful PE import parsing (verified with real sample output showing non-zero import counts).
+- Added build reproducibility and packaging workflow artifacts by pinning dependencies in analyzer/requirements.txt, introducing a one-command Windows build script (analyzer/build.bat), and documenting EXE build/run steps in README.md.
+- Improved release hygiene and repository cleanliness by adding .gitignore rules for virtual environment files, Python cache files, and PyInstaller build outputs (analyzer/build/, analyzer/dist/, analyzer/*.spec).
