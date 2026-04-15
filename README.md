@@ -36,3 +36,17 @@ Run the EXE from `analyzer/`:
 `.\dist\binary-analyzer.exe "..\samples\test.exe"`
 
 `.\dist\binary-analyzer.exe "..\samples\test.exe" --json`
+
+Two samples to test for immediately are in the `test-sample` folder
+
+## Phase 1 Isolation (Quarantine)
+
+Enable auto-isolation for suspicious files:
+
+`python analyzer/main.py samples/test.exe --auto-isolate`
+
+Set a custom threshold and quarantine directory:
+
+`python analyzer/main.py samples/test.exe --auto-isolate --isolate-threshold 25 --quarantine-dir quarantine`
+
+When a file is isolated, it is moved to the quarantine folder with a `.quarantine` extension and an event is logged to `manifest.jsonl` for manual review.
