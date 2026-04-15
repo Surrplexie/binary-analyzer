@@ -49,3 +49,11 @@ Next goals:
 - Implement a logging system to export these findings to a JSON or Text report for automated batch processing.
 - Create a new module hasher.py that calculates the MD5, SHA-1, and SHA-256 of the target binary.
 - Add a flag to main.py (e.g., --export) that saves the entire analysis output into a structured format like a .json file or a formatted .txt report in a reports/ folder.
+
+## Day 6 0.0.17
+- Added a new CLI interface with --json and --max-strings options so analysis can be used in scripts/automation and tuned for different verbosity needs.
+- Refactored output generation to build one structured results object, then render either human-readable text or JSON, making behavior more consistent and easier to extend.
+- Improved resilience when lief is not installed: the tool now starts normally and reports a clear import-analysis dependency message instead of crashing at startup.
+-Added executable packaging support with PyInstaller and validated the generated binary-analyzer.exe end-to-end in both human-readable and --json modes on real Windows binaries.
+- Improved dependency handling for LIEF so the tool no longer hard-crashes when the library is unavailable, and now reports a clear import-analysis status in output.
+- Fixed import extraction compatibility across LIEF API variants, enabling successful PE import parsing (verified with real sample output showing non-zero import counts).
