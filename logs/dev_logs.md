@@ -67,3 +67,11 @@ Next goals:
 - Implemented Phase 3 operations with `--delete-from-quarantine` and `--export-manifest-csv` to support cleanup and reporting workflows for analysts.
 - Added risk-level tagging (`LOW`, `MEDIUM`, `HIGH`) to analysis results to provide faster triage decisions in both human-readable and JSON output modes.
 - Added synthetic binary test samples in `test-sample/` (benign + suspicious) to quickly validate detection behavior and quarantine workflows during development.
+
+## Day 8 0.0.9
+- Refactored the CLI entry path: `main.py` now delegates to `cli.py`, with analysis logic in `analysis.py`, quarantine/manifest/CSV helpers in `quarantine.py`, and risk helpers in `risk.py` for easier maintenance and testing.
+- Extended auto-isolation with combined triggers: `--isolate-on-risk {LOW,MEDIUM,HIGH}` (isolate when computed risk meets or exceeds the chosen band) and `--keyword-isolate-threshold N` (isolate when suspicious string hit count is at least N; `0` disables). Any matching rule together with `--auto-isolate` can quarantine a file; the manifest records the full trigger reason string.
+- Enriched analysis results with `suspicious_indicators_total` and `suspicious_indicators_all` so triage and manifests use full keyword coverage, not only the preview slice.
+- Added a `tests/` suite (pytest) covering risk classification, file-type detection, mocked `build_results`, manifest parsing/CSV export, and isolation trigger composition; added `requirements-dev.txt` and documented `python -m pytest tests/` in README.md.
+- Added GitHub Actions workflow `.github/workflows/tests.yml` (Windows, Python 3.12) to install dependencies and run the test suite on push/PR to `main`.
+- Updated quarantine CSV export to include a `risk_level` column for manifest rows; ignored `.pytest_cache/` in `.gitignore`.
