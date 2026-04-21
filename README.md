@@ -80,3 +80,23 @@ Export to a custom CSV path:
 `python analyzer/main.py --export-manifest-csv logs/quarantine.csv --quarantine-dir quarantine`
 
 Risk levels are now included in analysis output as `LOW`, `MEDIUM`, or `HIGH` based on suspicious imports and keyword hits.
+
+## Tests
+
+Install dev dependencies and run tests from the repo root:
+
+`python -m pip install -r requirements-dev.txt`
+
+`python -m pytest tests/ -q`
+
+## Isolation triggers (combined)
+
+Auto-isolation runs when **any** enabled condition matches:
+
+- Import score: `suspicion_score >= --isolate-threshold` (default 25)
+- Risk band: `--isolate-on-risk MEDIUM` isolates **MEDIUM and HIGH**; `HIGH` isolates **HIGH only**
+- Keyword volume: `--keyword-isolate-threshold N` isolates when suspicious string hit count is **>= N** (use `0` to disable)
+
+Example (isolate high-risk string samples even with low import score):
+
+`python analyzer/main.py test-sample/bad_sample.bin --auto-isolate --isolate-on-risk MEDIUM --quarantine-dir quarantine`

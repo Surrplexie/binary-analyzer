@@ -5,3 +5,5 @@ __pycache__/
 analyzer/build/
 analyzer/dist/
 analyzer/*.spec
+
+.pytest_cache/
