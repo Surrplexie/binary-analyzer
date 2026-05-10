@@ -11,9 +11,21 @@ From the repository root, using a virtual environment is recommended:
 
 `python -m pip install -e .`
 
-This installs the `binary-analyzer` package and the `binary-analyzer` CLI command.
+This installs the `binary_analyzer` package. Pip also writes a `binary-analyzer` launcher into Python’s **Scripts** folder.
 
 For development (tests + PyInstaller): `python -m pip install -e ".[dev]"`
+
+### If `binary-analyzer` is “not recognized” (Windows)
+
+Store Python and some installs put **Scripts** outside your `PATH`, so the `binary-analyzer` command is missing even though the package installed. Use the module form instead (same behavior):
+
+`python -m binary_analyzer samples/test.exe --json`
+
+Or add Scripts to `PATH`. Print where pip puts scripts for this interpreter:
+
+`python -c "import sysconfig; print(sysconfig.get_path('scripts'))"`
+
+Activating a **venv** (`.\.venv\Scripts\activate`) usually puts that folder on `PATH` so `binary-analyzer` works after `pip install -e .` inside the venv.
 
 ### Programmatic API
 
@@ -28,19 +40,21 @@ Or import submodules explicitly, for example `from binary_analyzer.analysis impo
 
 ## Usage
 
+Prefer **`python -m binary_analyzer`** if the `binary-analyzer` command is not on your `PATH` (common on Windows).
+
 Run standard human-readable analysis:
 
-`binary-analyzer samples/test.exe`
-
-Or: `python -m binary_analyzer samples/test.exe`
+`python -m binary_analyzer samples/test.exe`
 
 Run machine-readable JSON output:
 
-`binary-analyzer samples/test.exe --json`
+`python -m binary_analyzer samples/test.exe --json`
 
 Control how many strings are previewed:
 
-`binary-analyzer samples/test.exe --max-strings 25`
+`python -m binary_analyzer samples/test.exe --max-strings 25`
+
+If Scripts is on `PATH`, you can use `binary-analyzer` instead of `python -m binary_analyzer`.
 
 ## Build Windows EXE
 
