@@ -1,6 +1,6 @@
 import types
 
-from cli import isolation_triggers
+from binary_analyzer.cli import isolation_triggers
 
 
 def _results(score=0, level="LOW", kw_total=0):

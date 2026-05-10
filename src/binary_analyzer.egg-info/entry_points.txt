@@ -1,0 +1,2 @@
+[console_scripts]
+binary-analyzer = binary_analyzer.cli:main

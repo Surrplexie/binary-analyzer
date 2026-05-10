@@ -2,8 +2,8 @@
 __pycache__/
 *.pyc
 
-analyzer/build/
-analyzer/dist/
-analyzer/*.spec
+build/
+dist/
+*.spec
 
 .pytest_cache/

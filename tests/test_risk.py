@@ -1,6 +1,6 @@
 import pytest
 
-from risk import classify_risk_level, risk_meets_minimum, risk_rank
+from binary_analyzer.risk import classify_risk_level, risk_meets_minimum, risk_rank
 
 
 @pytest.mark.parametrize(

@@ -2,7 +2,7 @@ import json
 import os
 import tempfile
 
-from quarantine import export_manifest_csv, read_manifest_entries
+from binary_analyzer.quarantine import export_manifest_csv, read_manifest_entries
 
 
 def test_read_manifest_entries_skips_bad_lines():

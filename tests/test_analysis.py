@@ -3,7 +3,7 @@ import tempfile
 
 import pytest
 
-from analysis import build_results, detect_file_type
+from binary_analyzer.analysis import build_results, detect_file_type
 
 
 def test_detect_file_type_pe():
@@ -46,9 +46,9 @@ def test_build_results_includes_risk_and_totals(monkeypatch):
     def fake_find_suspicious(strings):
         return [s for s in strings if "powershell" in s.lower()]
 
-    monkeypatch.setattr("analysis.get_imports", fake_get_imports)
-    monkeypatch.setattr("analysis.extract_strings", fake_strings)
-    monkeypatch.setattr("analysis.find_suspicious_strings", fake_find_suspicious)
+    monkeypatch.setattr("binary_analyzer.analysis.get_imports", fake_get_imports)
+    monkeypatch.setattr("binary_analyzer.analysis.extract_strings", fake_strings)
+    monkeypatch.setattr("binary_analyzer.analysis.find_suspicious_strings", fake_find_suspicious)
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
         f.write(b"hello world test")

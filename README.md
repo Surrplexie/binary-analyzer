@@ -1,41 +1,68 @@
 # binary-analyzer
 Build a tool that can analyze executable files and extract for RE info such as file type, architecture, imported function, strings, entropy, and patterns.
 
+## Install
+
+From the repository root, using a virtual environment is recommended:
+
+`python -m venv .venv`
+
+`.\.venv\Scripts\activate` (Windows) or `source .venv/bin/activate` (Unix)
+
+`python -m pip install -e .`
+
+This installs the `binary-analyzer` package and the `binary-analyzer` CLI command.
+
+For development (tests + PyInstaller): `python -m pip install -e ".[dev]"`
+
+### Programmatic API
+
+```python
+from binary_analyzer import build_results, detect_file_type
+
+results = build_results(r"path\to\file.exe", max_strings=20)
+print(results["risk"]["level"])
+```
+
+Or import submodules explicitly, for example `from binary_analyzer.analysis import build_results`.
+
 ## Usage
 
 Run standard human-readable analysis:
 
-`python analyzer/main.py samples/test.exe`
+`binary-analyzer samples/test.exe`
+
+Or: `python -m binary_analyzer samples/test.exe`
 
 Run machine-readable JSON output:
 
-`python analyzer/main.py samples/test.exe --json`
+`binary-analyzer samples/test.exe --json`
 
 Control how many strings are previewed:
 
-`python analyzer/main.py samples/test.exe --max-strings 25`
+`binary-analyzer samples/test.exe --max-strings 25`
 
 ## Build Windows EXE
 
-From `analyzer/`, create and activate a virtual environment:
+From the repository root, create and activate a virtual environment:
 
 `python -m venv .venv`
 
 `.\.venv\Scripts\activate`
 
-Install dependencies and build:
+Install and build:
 
 `build.bat`
 
 EXE output path:
 
-`analyzer/dist/binary-analyzer.exe`
+`dist/binary-analyzer.exe`
 
-Run the EXE from `analyzer/`:
+Run the EXE from the repository root (adjust paths as needed):
 
-`.\dist\binary-analyzer.exe "..\samples\test.exe"`
+`.\dist\binary-analyzer.exe samples\test.exe`
 
-`.\dist\binary-analyzer.exe "..\samples\test.exe" --json`
+`.\dist\binary-analyzer.exe samples\test.exe --json`
 
 Two samples to test for immediately are in the `test-sample` folder
 
@@ -43,11 +70,11 @@ Two samples to test for immediately are in the `test-sample` folder
 
 Enable auto-isolation for suspicious files:
 
-`python analyzer/main.py samples/test.exe --auto-isolate`
+`binary-analyzer samples/test.exe --auto-isolate`
 
 Set a custom threshold and quarantine directory:
 
-`python analyzer/main.py samples/test.exe --auto-isolate --isolate-threshold 25 --quarantine-dir quarantine`
+`binary-analyzer samples/test.exe --auto-isolate --isolate-threshold 25 --quarantine-dir quarantine`
 
 When a file is isolated, it is moved to the quarantine folder with a `.quarantine` extension and an event is logged to `manifest.jsonl` for manual review.
 
@@ -55,37 +82,37 @@ When a file is isolated, it is moved to the quarantine folder with a `.quarantin
 
 List files currently in quarantine:
 
-`python analyzer/main.py --list-quarantine --quarantine-dir quarantine`
+`binary-analyzer --list-quarantine --quarantine-dir quarantine`
 
 Restore a quarantined file by SHA256 prefix:
 
-`python analyzer/main.py --restore 7830b26b --quarantine-dir quarantine`
+`binary-analyzer --restore 7830b26b --quarantine-dir quarantine`
 
 JSON output works for review and restore commands too:
 
-`python analyzer/main.py --list-quarantine --quarantine-dir quarantine --json`
+`binary-analyzer --list-quarantine --quarantine-dir quarantine --json`
 
 ## Phase 3 Quarantine Operations
 
 Delete a quarantined file by SHA256 prefix:
 
-`python analyzer/main.py --delete-from-quarantine 7830b26b --quarantine-dir quarantine`
+`binary-analyzer --delete-from-quarantine 7830b26b --quarantine-dir quarantine`
 
 Export quarantine manifest to CSV:
 
-`python analyzer/main.py --export-manifest-csv --quarantine-dir quarantine`
+`binary-analyzer --export-manifest-csv --quarantine-dir quarantine`
 
 Export to a custom CSV path:
 
-`python analyzer/main.py --export-manifest-csv logs/quarantine.csv --quarantine-dir quarantine`
+`binary-analyzer --export-manifest-csv logs/quarantine.csv --quarantine-dir quarantine`
 
 Risk levels are now included in analysis output as `LOW`, `MEDIUM`, or `HIGH` based on suspicious imports and keyword hits.
 
 ## Tests
 
-Install dev dependencies and run tests from the repo root:
+Install with dev extras and run tests from the repo root:
 
-`python -m pip install -r requirements-dev.txt`
+`python -m pip install -e ".[dev]"`
 
 `python -m pytest tests/ -q`
 
@@ -99,4 +126,4 @@ Auto-isolation runs when **any** enabled condition matches:
 
 Example (isolate high-risk string samples even with low import score):
 
-`python analyzer/main.py test-sample/bad_sample.bin --auto-isolate --isolate-on-risk MEDIUM --quarantine-dir quarantine`
+`binary-analyzer test-sample/bad_sample.bin --auto-isolate --isolate-on-risk MEDIUM --quarantine-dir quarantine`

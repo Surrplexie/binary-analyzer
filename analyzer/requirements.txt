@@ -1,2 +1,0 @@
-lief==0.17.6
-pyinstaller==6.19.0
