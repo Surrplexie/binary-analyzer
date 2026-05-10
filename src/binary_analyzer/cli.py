@@ -4,6 +4,7 @@ import os
 import sys
 
 from .analysis import build_results
+from .rules import load_effective_rules, RULES_ENV_VAR
 from .quarantine import (
     append_manifest,
     delete_from_quarantine,
@@ -89,6 +90,13 @@ def parse_args():
         const="",
         dest="export_manifest_csv",
         help="Export quarantine manifest.jsonl to CSV (optional output path)",
+    )
+    parser.add_argument(
+        "--rules",
+        default=None,
+        metavar="PATH",
+        help=f"JSON rules file (import weights, string keywords, risk bands). "
+        f"Overrides {RULES_ENV_VAR} when set.",
     )
     return parser.parse_args()
 
@@ -231,7 +239,7 @@ def main():
         print(f"Error: File '{file_path}' does not exist")
         sys.exit(1)
 
-    results = build_results(file_path, max_strings)
+    results = build_results(file_path, max_strings, rules=load_effective_rules(cli_path=args.rules))
     if args.auto_isolate:
         should, reason = isolation_triggers(args, results)
         if should:

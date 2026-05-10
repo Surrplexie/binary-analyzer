@@ -26,34 +26,18 @@ def get_imports(filepath: str) -> list:
 
     return []
 
-SUSPICIOUS_IMPORTS = {
-    "ptrace":             20,
-    "fork":               8,
-    "execve":             15,
-    "socket":             10,
-    "connect":            10,
-    "mprotect":           12,
-    "WriteProcessMemory": 25,
-    "CreateRemoteThread": 25,
-    "VirtualAlloc":       15,
-    "RegOpenKeyEx":       10,
-}
-
-def calculate_suspicion_score(found_imports: list) -> int:
+def calculate_suspicion_score(found_imports: list, suspicious_imports: dict[str, int]) -> int:
     score = 0
     for imp in found_imports:
-        if imp in SUSPICIOUS_IMPORTS:
-            score += SUSPICIOUS_IMPORTS[imp]
+        if imp in suspicious_imports:
+            score += suspicious_imports[imp]
     return score
 
-def find_suspicious_strings(strings):
-    suspicious = [
-        "cmd.exe", "powershell", "wget", "curl",
-        "VirtualAlloc", "CreateRemoteThread", "WriteProcessMemory"
-    ]
+
+def find_suspicious_strings(strings, keywords: list[str]):
     found = []
     for s in strings:
-        for keyword in suspicious:
+        for keyword in keywords:
             if keyword.lower() in s.lower():
                 found.append(s)
     return list(set(found))

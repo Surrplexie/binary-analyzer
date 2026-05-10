@@ -43,7 +43,7 @@ def test_build_results_includes_risk_and_totals(monkeypatch):
     def fake_strings(_path):
         return ["safe", "powershell -nop"]
 
-    def fake_find_suspicious(strings):
+    def fake_find_suspicious(strings, keywords):
         return [s for s in strings if "powershell" in s.lower()]
 
     monkeypatch.setattr("binary_analyzer.analysis.get_imports", fake_get_imports)
@@ -55,6 +55,7 @@ def test_build_results_includes_risk_and_totals(monkeypatch):
         path = f.name
     try:
         r = build_results(path, max_strings=1)
+        assert r["rules"]["source"] == "package-default"
         assert r["suspicious_indicators_total"] == 1
         assert len(r["suspicious_indicators"]) == 1
         assert len(r["suspicious_indicators_all"]) == 1

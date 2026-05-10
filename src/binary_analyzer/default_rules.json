@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "suspicious_imports": {
+    "ptrace": 20,
+    "fork": 8,
+    "execve": 15,
+    "socket": 10,
+    "connect": 10,
+    "mprotect": 12,
+    "WriteProcessMemory": 25,
+    "CreateRemoteThread": 25,
+    "VirtualAlloc": 15,
+    "RegOpenKeyEx": 10
+  },
+  "suspicious_string_keywords": [
+    "cmd.exe",
+    "powershell",
+    "wget",
+    "curl",
+    "VirtualAlloc",
+    "CreateRemoteThread",
+    "WriteProcessMemory"
+  ],
+  "risk": {
+    "high": {
+      "min_suspicion_score": 40,
+      "min_suspicious_string_count": 5
+    },
+    "medium": {
+      "min_suspicion_score": 20,
+      "min_suspicious_string_count": 2
+    }
+  }
+}

@@ -1,11 +1,15 @@
 import os
+from typing import TYPE_CHECKING, Optional
 
 from .string_extractor import extract_strings
 from .entropy import calculate_entropy, entropy_verdict
 from .pe_parser import parse_pe
-from .indicators import find_suspicious_strings, get_imports, calculate_suspicion_score, SUSPICIOUS_IMPORTS
+from .indicators import find_suspicious_strings, get_imports, calculate_suspicion_score
 from .quarantine import sha256_file
 from .risk import classify_risk_level
+
+if TYPE_CHECKING:
+    from .rules import AnalysisRules
 
 
 def detect_file_type(file_path):
@@ -19,7 +23,11 @@ def detect_file_type(file_path):
     return "Unknown"
 
 
-def build_results(file_path, max_strings):
+def build_results(file_path, max_strings, rules: Optional["AnalysisRules"] = None):
+    from .rules import load_default_rules
+
+    eff = rules or load_default_rules()
+
     size = os.path.getsize(file_path)
     file_hash = sha256_file(file_path)
     file_type = detect_file_type(file_path)
@@ -31,7 +39,7 @@ def build_results(file_path, max_strings):
     try:
         imports = get_imports(file_path)
         if imports:
-            suspicion_score = calculate_suspicion_score(imports)
+            suspicion_score = calculate_suspicion_score(imports, eff.suspicious_imports)
     except Exception as e:
         import_analysis_error = str(e)
 
@@ -41,12 +49,14 @@ def build_results(file_path, max_strings):
     pe_info = None
     if file_type.startswith("PE"):
         pe_info = parse_pe(file_path)
-    suspicious = find_suspicious_strings(strings)
-    matched_suspicious_imports = sorted(set(i for i in imports if i in SUSPICIOUS_IMPORTS))
+    suspicious = find_suspicious_strings(strings, eff.suspicious_string_keywords)
+    weights = eff.suspicious_imports
+    matched_suspicious_imports = sorted(set(i for i in imports if i in weights))
     suspicious_total = len(suspicious)
 
     return {
         "file_path": file_path,
+        "rules": {"source": eff.source},
         "file_info": {
             "size_bytes": size,
             "sha256": file_hash,
@@ -71,7 +81,7 @@ def build_results(file_path, max_strings):
         "suspicious_indicators_all": suspicious,
         "suspicious_indicators_total": suspicious_total,
         "risk": {
-            "level": classify_risk_level(suspicion_score, suspicious_total),
+            "level": classify_risk_level(suspicion_score, suspicious_total, eff),
         },
         "isolation": {
             "attempted": False,

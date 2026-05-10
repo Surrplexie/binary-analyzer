@@ -25,6 +25,9 @@ binary-analyzer = "binary_analyzer.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+binary_analyzer = ["default_rules.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
