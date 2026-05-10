@@ -46,7 +46,7 @@ Detection uses a bundled **default** rules file (`default_rules.json` in the pac
 
 `python -m binary_analyzer samples/test.exe --json --rules my_rules.json`
 
-**Environment:** if `--rules` is not set, a path in **`BINARY_ANALYZER_RULES`** is used when present. `--rules` wins over the environment variable.
+**Environment:** if `--rules` is not set, a path in **`BINARY_ANALYZER_RULES`** is used when present. `--rules` wins over the environment variable. Use a **real** path to a JSON file; if this variable is left set to a placeholder from testing, the CLI will fail until you unset it (see the error message for PowerShell/cmd/bash commands).
 
 **Merge behavior:**
 

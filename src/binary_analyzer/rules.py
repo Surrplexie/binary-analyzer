@@ -120,8 +120,25 @@ def load_effective_rules(cli_path: str | None = None) -> AnalysisRules:
     Resolve rules: explicit --rules path, then BINARY_ANALYZER_RULES, then packaged default.
     """
     if cli_path:
+        p = Path(cli_path)
+        if not p.is_file():
+            raise FileNotFoundError(
+                f"Rules file not found for --rules ({p}). "
+                "Fix the path or run without --rules."
+            )
         return load_rules_from_path(cli_path)
+
     env_path = os.environ.get(RULES_ENV_VAR, "").strip()
     if env_path:
+        p = Path(env_path)
+        if not p.is_file():
+            raise FileNotFoundError(
+                f"Rules file not found: {p}\n"
+                f"The environment variable {RULES_ENV_VAR} points to that path (copy-paste from docs?). "
+                "Unset it to use bundled defaults:\n"
+                f"  PowerShell: Remove-Item Env:{RULES_ENV_VAR}\n"
+                f"  cmd.exe: set {RULES_ENV_VAR}=\n"
+                f"  bash: unset {RULES_ENV_VAR}"
+            )
         return load_rules_from_path(env_path)
     return load_default_rules()
