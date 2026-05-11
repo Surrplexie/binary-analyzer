@@ -3,3 +3,9 @@ lief==0.17.6
 [dev]
 pytest>=8.0.0
 pyinstaller==6.19.0
+customtkinter>=5.2.0
+tkinterdnd2>=0.4.0
+
+[gui]
+customtkinter>=5.2.0
+tkinterdnd2>=0.4.0

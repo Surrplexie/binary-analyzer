@@ -7,6 +7,7 @@ src/binary_analyzer/analysis.py
 src/binary_analyzer/cli.py
 src/binary_analyzer/default_rules.json
 src/binary_analyzer/entropy.py
+src/binary_analyzer/gui.py
 src/binary_analyzer/indicators.py
 src/binary_analyzer/pe_parser.py
 src/binary_analyzer/quarantine.py

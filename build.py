@@ -2,10 +2,14 @@
 """
 Cross-platform build script for binary-analyzer.
 
-Usage:
-  python build.py                # build for this platform
-  python build.py --no-install   # skip pip install step
-  python build.py --clean        # wipe build/ and dist/ first
+Targets:
+  python build.py           build CLI binary only (default)
+  python build.py --gui     build GUI binary only
+  python build.py --both    build both
+
+Flags:
+  --clean        wipe build/ and dist/ first
+  --no-install   skip pip install step
 """
 from __future__ import annotations
 
@@ -15,15 +19,30 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).parent.resolve()
-# _entry.py is a plain (non-package) shim that avoids the relative-import
-# issue that occurs when PyInstaller uses __main__.py as the frozen entry.
-ENTRY = ROOT / "_entry.py"
-DIST = ROOT / "dist"
-BUILD = ROOT / "build"
+ROOT    = Path(__file__).parent.resolve()
+DIST    = ROOT / "dist"
+BUILD   = ROOT / "build"
+IS_WIN  = sys.platform == "win32"
 
-IS_WIN = sys.platform == "win32"
-EXE_NAME = "binary-analyzer"
+# Entry-point shims (plain scripts — relative imports break when frozen)
+CLI_ENTRY = ROOT / "_entry.py"
+GUI_ENTRY = ROOT / "_entry_gui.py"
+
+
+def _ensure_entry_shims():
+    """Write entry shims if they don't already exist (they're .gitignored)."""
+    if not CLI_ENTRY.exists():
+        CLI_ENTRY.write_text(
+            "from binary_analyzer.cli import main\n\n"
+            "if __name__ == '__main__':\n    main()\n",
+            encoding="utf-8",
+        )
+    if not GUI_ENTRY.exists():
+        GUI_ENTRY.write_text(
+            "from binary_analyzer.gui import run_gui\n\n"
+            "if __name__ == '__main__':\n    run_gui()\n",
+            encoding="utf-8",
+        )
 
 
 def run(cmd: list, **kwargs) -> None:
@@ -47,22 +66,28 @@ def install_deps() -> None:
     run([sys.executable, "-m", "pip", "install", "-e", ".[dev]", "-q"])
 
 
-def build_binary() -> Path:
-    if not ENTRY.exists():
-        print(f"ERROR: entry point not found: {ENTRY}", file=sys.stderr)
+def _check_dnd() -> bool:
+    """Return True if tkinterdnd2 is importable (for --collect-all in GUI build)."""
+    try:
+        import tkinterdnd2  # noqa
+        return True
+    except ImportError:
+        return False
+
+
+def build_cli() -> Path:
+    _ensure_entry_shims()
+    if not CLI_ENTRY.exists():
+        print(f"ERROR: CLI entry not found: {CLI_ENTRY}", file=sys.stderr)
         sys.exit(1)
 
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--onefile",
-        "--name", EXE_NAME,
-        # let PyInstaller find the installed package AND the editable src layout
+        "--name", "binary-analyzer",
         "--paths", str(ROOT / "src"),
-        # bundle the JSON data files packed inside the package
         "--collect-data", "binary_analyzer",
-        # lief is a C-extension; collect its binaries as well
         "--collect-all", "lief",
-        # explicit hidden imports so nothing is missed by static analysis
         "--hidden-import", "binary_analyzer",
         "--hidden-import", "binary_analyzer.rules",
         "--hidden-import", "binary_analyzer.analysis",
@@ -74,45 +99,114 @@ def build_binary() -> Path:
         "--hidden-import", "binary_analyzer.risk",
         "--hidden-import", "binary_analyzer.string_extractor",
         "--noconfirm",
-        str(ENTRY),
+        str(CLI_ENTRY),
+    ]
+    run(cmd, cwd=str(ROOT))
+    return _check_output("binary-analyzer")
+
+
+def build_gui() -> Path:
+    _ensure_entry_shims()
+    if not GUI_ENTRY.exists():
+        print(f"ERROR: GUI entry not found: {GUI_ENTRY}", file=sys.stderr)
+        sys.exit(1)
+
+    cmd = [
+        sys.executable, "-m", "PyInstaller",
+        "--onefile",
+        "--name", "binary-analyzer-gui",
+        "--paths", str(ROOT / "src"),
+        "--collect-data", "binary_analyzer",
+        "--collect-all", "lief",
+        "--collect-all", "customtkinter",
+        "--hidden-import", "binary_analyzer",
+        "--hidden-import", "binary_analyzer.gui",
+        "--hidden-import", "binary_analyzer.rules",
+        "--hidden-import", "binary_analyzer.analysis",
+        "--hidden-import", "binary_analyzer.cli",
+        "--hidden-import", "binary_analyzer.entropy",
+        "--hidden-import", "binary_analyzer.indicators",
+        "--hidden-import", "binary_analyzer.pe_parser",
+        "--hidden-import", "binary_analyzer.quarantine",
+        "--hidden-import", "binary_analyzer.risk",
+        "--hidden-import", "binary_analyzer.string_extractor",
+        "--hidden-import", "tkinter",
+        "--hidden-import", "tkinter.ttk",
+        "--hidden-import", "tkinter.filedialog",
+        "--hidden-import", "tkinter.messagebox",
+        "--hidden-import", "tkinter.simpledialog",
+        "--noconfirm",
     ]
 
-    run(cmd, cwd=str(ROOT))
+    if IS_WIN:
+        cmd.append("--windowed")   # suppress console window on Windows
 
+    if _check_dnd():
+        cmd += ["--collect-all", "tkinterdnd2"]
+
+    cmd.append(str(GUI_ENTRY))
+    run(cmd, cwd=str(ROOT))
+    return _check_output("binary-analyzer-gui")
+
+
+def _check_output(name: str) -> Path:
     suffix = ".exe" if IS_WIN else ""
-    out = DIST / f"{EXE_NAME}{suffix}"
+    out = DIST / f"{name}{suffix}"
     if not out.exists():
         print(f"ERROR: expected output not found: {out}", file=sys.stderr)
         sys.exit(1)
     return out
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Build binary-analyzer standalone binary.")
+def _report(out: Path):
+    mb = out.stat().st_size / (1024 * 1024)
+    print(f"\n  OK  {out}  ({mb:.1f} MB)")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Build binary-analyzer standalone binaries.")
+    grp = parser.add_mutually_exclusive_group()
+    grp.add_argument("--gui",  action="store_true", help="Build GUI binary only")
+    grp.add_argument("--both", action="store_true", help="Build CLI + GUI binaries")
     parser.add_argument("--no-install", action="store_true", help="Skip pip install step")
-    parser.add_argument("--clean", action="store_true", help="Remove build/ and dist/ before building")
+    parser.add_argument("--clean",      action="store_true", help="Wipe build/ and dist/ first")
     args = parser.parse_args()
 
     print(f"Platform : {sys.platform}")
-    print(f"Python   : {sys.version}")
+    print(f"Python   : {sys.version.split()[0]}")
     print(f"Root     : {ROOT}")
-    print(f"Entry    : {ENTRY}")
 
     if args.clean:
         clean()
 
     if not args.no_install:
-        print("\n[1/2] Installing package + dev dependencies...")
+        print("\n[install] Installing package + dev dependencies…")
         install_deps()
+
+    outputs = []
+
+    if args.gui:
+        print("\n[build] Building GUI binary…")
+        outputs.append(build_gui())
+    elif args.both:
+        print("\n[build] Building CLI binary…")
+        outputs.append(build_cli())
+        print("\n[build] Building GUI binary…")
+        outputs.append(build_gui())
     else:
-        print("\n[1/2] Skipping install (--no-install)")
+        print("\n[build] Building CLI binary…")
+        outputs.append(build_cli())
 
-    print("\n[2/2] Building standalone binary via PyInstaller...")
-    out = build_binary()
+    print("\nBuild complete:")
+    for o in outputs:
+        _report(o)
 
-    size_mb = out.stat().st_size / (1024 * 1024)
-    print(f"\nBuild complete: {out}  ({size_mb:.1f} MB)")
-    print(f"Run it with  : {out} samples/test.exe --json")
+    print("\nRun examples:")
+    for o in outputs:
+        if "gui" in o.name:
+            print(f"  {o} samples/test.exe")
+        else:
+            print(f"  {o} samples/test.exe --json")
 
 
 if __name__ == "__main__":

@@ -1,2 +1,3 @@
 [console_scripts]
 binary-analyzer = binary_analyzer.cli:main
+binary-analyzer-gui = binary_analyzer.gui:run_gui

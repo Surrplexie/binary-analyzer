@@ -6,5 +6,6 @@ build/
 dist/
 *.spec
 _entry.py
+_entry_gui.py
 
 .pytest_cache/

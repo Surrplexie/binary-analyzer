@@ -6,7 +6,8 @@ A static analysis tool for executable files. Extracts reverse-engineering indica
 
 ## Table of Contents
 
-1. [Features](#features)
+1. [GUI Mode](#gui-mode)
+2. [Features](#features)
 2. [Requirements](#requirements)
 3. [Getting Started](#getting-started)
    - [Option A — Pre-built binary (no Python needed)](#option-a--pre-built-binary-no-python-needed)
@@ -40,6 +41,53 @@ A static analysis tool for executable files. Extracts reverse-engineering indica
 10. [Running Tests](#running-tests)
 11. [CLI Reference](#cli-reference)
 12. [Project Structure](#project-structure)
+
+---
+
+## GUI Mode
+
+A full graphical interface is available alongside the CLI. Open the app, drop a binary onto the drop zone (or paste a path), and hit Analyze.
+
+**Features:**
+- Dark HUD aesthetic with color-coded risk badge (RED / ORANGE / GREEN)
+- Drag-and-drop file target — or click to browse
+- Import analysis with per-function suspicion weights
+- Suspicious strings listed with highlighting
+- PE section table (name, size, offset)
+- Shannon entropy with visual verdict
+- **Isolate File** button — prompts for quarantine dir, moves file, logs manifest
+- **Copy JSON** — puts full analysis JSON on the clipboard
+- **Save Report** — saves `.json` report to a chosen path
+- **Load Rules** — load a custom JSON rules file in-session without restarting
+- Analysis runs in a background thread — UI stays responsive on large binaries
+
+### Running the GUI
+
+**No Python — use the pre-built binary (recommended):**
+
+```powershell
+# Windows
+.\binary-analyzer-gui.exe
+```
+
+```bash
+# Linux
+chmod +x binary-analyzer-gui
+./binary-analyzer-gui
+```
+
+**From source:**
+
+```bash
+pip install -e ".[gui]"
+python -m binary_analyzer --gui
+```
+
+**Drag-and-drop support** requires `tkinterdnd2` (included in `.[gui]` and `.[dev]` extras). If not installed the drop zone falls back to click-to-browse — everything else works identically.
+
+> **Linux note:** running the GUI from source requires `python3-tk`:
+> `sudo apt install python3-tk`
+> The pre-built binary bundles Tk — no system package needed.
 
 ---
 
@@ -78,10 +126,10 @@ The pre-built binaries in [Releases](../../releases) require **no Python** on th
 
 Download the latest binary for your platform from the [Releases](../../releases) page:
 
-| Platform | File |
-|---|---|
-| Windows 64-bit | `binary-analyzer.exe` |
-| Linux 64-bit | `binary-analyzer` |
+| Platform | CLI | GUI |
+|---|---|---|
+| Windows 64-bit | `binary-analyzer.exe` | `binary-analyzer-gui.exe` |
+| Linux 64-bit | `binary-analyzer` | `binary-analyzer-gui` |
 
 **Windows**
 
@@ -544,8 +592,15 @@ Output: `dist/binary-analyzer`
 
 | Flag | Effect |
 |---|---|
+| *(no flag)* | Build CLI binary only |
+| `--gui` | Build GUI binary only |
+| `--both` | Build CLI + GUI binaries |
 | `--clean` | Delete `build/`, `dist/`, and `*.spec` before building |
 | `--no-install` | Skip `pip install -e ".[dev]"` (use when deps are already current) |
+
+```powershell
+python build.py --both --clean   # full clean build of everything
+```
 
 ### Automated builds via GitHub Actions
 

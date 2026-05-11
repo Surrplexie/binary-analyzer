@@ -14,13 +14,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+gui = [
+    "customtkinter>=5.2.0",
+    "tkinterdnd2>=0.4.0",
+]
 dev = [
     "pytest>=8.0.0",
     "pyinstaller==6.19.0",
+    "customtkinter>=5.2.0",
+    "tkinterdnd2>=0.4.0",
 ]
 
 [project.scripts]
 binary-analyzer = "binary_analyzer.cli:main"
+binary-analyzer-gui = "binary_analyzer.gui:run_gui"
 
 [tool.setuptools.packages.find]
 where = ["src"]

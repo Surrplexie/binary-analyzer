@@ -1,10 +1,10 @@
 name: build
 
 on:
-  workflow_dispatch:          # run manually from Actions tab
+  workflow_dispatch:
   push:
     tags:
-      - "v*"                  # auto-run on version tags like v0.2.0
+      - "v*"
 
 jobs:
   build:
@@ -13,11 +13,13 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact: binary-analyzer.exe
-            artifact_name: binary-analyzer-windows
+            cli_artifact:  binary-analyzer.exe
+            gui_artifact:  binary-analyzer-gui.exe
+            artifact_name: binaries-windows
           - os: ubuntu-latest
-            artifact: binary-analyzer
-            artifact_name: binary-analyzer-linux
+            cli_artifact:  binary-analyzer
+            gui_artifact:  binary-analyzer-gui
+            artifact_name: binaries-linux
 
     runs-on: ${{ matrix.os }}
 
@@ -28,17 +30,18 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build standalone binary
-        run: python build.py
+      - name: Build CLI + GUI binaries
+        run: python build.py --both
 
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: dist/${{ matrix.artifact }}
+          path: |
+            dist/${{ matrix.cli_artifact }}
+            dist/${{ matrix.gui_artifact }}
           if-no-files-found: error
 
-  # Create a GitHub Release with both binaries when a version tag is pushed.
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
@@ -58,6 +61,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist-all/binary-analyzer-windows/binary-analyzer.exe
-            dist-all/binary-analyzer-linux/binary-analyzer
+            dist-all/binaries-windows/binary-analyzer.exe
+            dist-all/binaries-windows/binary-analyzer-gui.exe
+            dist-all/binaries-linux/binary-analyzer
+            dist-all/binaries-linux/binary-analyzer-gui
           generate_release_notes: true
