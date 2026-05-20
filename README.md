@@ -8,39 +8,39 @@ A static analysis tool for executable files. Extracts reverse-engineering indica
 
 1. [GUI Mode](#gui-mode)
 2. [Features](#features)
-2. [Requirements](#requirements)
-3. [Getting Started](#getting-started)
+3. [Requirements](#requirements)
+4. [Getting Started](#getting-started)
    - [Option A — Pre-built binary (no Python needed)](#option-a--pre-built-binary-no-python-needed)
    - [Option B — Install from source](#option-b--install-from-source)
-4. [Running an Analysis](#running-an-analysis)
+5. [Running an Analysis](#running-an-analysis)
    - [Human-readable output](#human-readable-output)
    - [JSON output](#json-output)
    - [Controlling string preview length](#controlling-string-preview-length)
-5. [Understanding the Output](#understanding-the-output)
+6. [Understanding the Output](#understanding-the-output)
    - [Risk levels](#risk-levels)
    - [Entropy status](#entropy-status)
-6. [Quarantine Workflow](#quarantine-workflow)
+7. [Quarantine Workflow](#quarantine-workflow)
    - [Auto-isolation](#auto-isolation)
    - [Isolation triggers](#isolation-triggers)
    - [Listing quarantine](#listing-quarantine)
    - [Restoring a file](#restoring-a-file)
    - [Deleting from quarantine](#deleting-from-quarantine)
    - [Exporting the manifest](#exporting-the-manifest)
-7. [Custom Rules](#custom-rules)
+8. [Custom Rules](#custom-rules)
    - [Rules file format](#rules-file-format)
    - [Merge behavior](#merge-behavior)
    - [Applying rules via CLI](#applying-rules-via-cli)
    - [Applying rules via environment variable](#applying-rules-via-environment-variable)
    - [Applying rules via Python API](#applying-rules-via-python-api)
-8. [Python API](#python-api)
-9. [Building Standalone Binaries](#building-standalone-binaries)
+9. [Python API](#python-api)
+10. [Building Standalone Binaries](#building-standalone-binaries)
    - [Windows](#windows)
    - [Linux](#linux)
    - [Build flags](#build-flags)
    - [Automated builds via GitHub Actions](#automated-builds-via-github-actions)
-10. [Running Tests](#running-tests)
-11. [CLI Reference](#cli-reference)
-12. [Project Structure](#project-structure)
+11. [Running Tests](#running-tests)
+12. [CLI Reference](#cli-reference)
+13. [Project Structure](#project-structure)
 
 ---
 
@@ -153,7 +153,7 @@ chmod +x binary-analyzer
 **1. Clone the repository**
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/binary-analyzer.git
+git clone https://github.com/Surrplexie/binary-analyzer.git
 cd binary-analyzer
 ```
 
@@ -650,7 +650,7 @@ Test files:
 ## CLI Reference
 
 ```
-usage: python -m binary_analyzer [-h] [--json] [--max-strings N] [--rules PATH]
+usage: python -m binary_analyzer [-h] [--gui] [--json] [--max-strings N] [--rules PATH]
                                   [--auto-isolate] [--isolate-threshold N]
                                   [--isolate-on-risk {LOW,MEDIUM,HIGH}]
                                   [--keyword-isolate-threshold N]
@@ -664,6 +664,7 @@ usage: python -m binary_analyzer [-h] [--json] [--max-strings N] [--rules PATH]
 
 | Argument | Default | Description |
 |---|---|---|
+| `--gui` | off | Launch the graphical interface (`__main__.py`; also available as `binary-analyzer-gui`) |
 | `binary_file` | — | Path to the file to analyze |
 | `--json` | off | Output machine-readable JSON |
 | `--max-strings N` | 10 | Number of strings to include in preview |
@@ -682,13 +683,20 @@ usage: python -m binary_analyzer [-h] [--json] [--max-strings N] [--rules PATH]
 
 ## Project Structure
 
+For module interactions and data flow, see [docs/architecture.md](docs/architecture.md).
+
 ```
 binary-analyzer/
+├── docs/
+│   └── architecture.md        # module map, data flow, rules/quarantine semantics
+├── Docs/
+│   └── Remediations.md        # development log and backlog
 ├── src/
 │   └── binary_analyzer/
 │       ├── __init__.py          # public API exports
-│       ├── __main__.py          # python -m binary_analyzer entry
+│       ├── __main__.py          # python -m binary_analyzer entry (--gui routing)
 │       ├── cli.py               # argument parsing, human-readable output, main()
+│       ├── gui.py               # CustomTkinter HUD interface
 │       ├── analysis.py          # build_results(), detect_file_type()
 │       ├── indicators.py        # get_imports(), scoring, string matching
 │       ├── entropy.py           # Shannon entropy + verdict

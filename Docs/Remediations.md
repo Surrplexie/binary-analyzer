@@ -1,70 +1,78 @@
-Dev logs rules; REM-1, REM-2 any of these terms are the new 'updates' like "Update 1", all major logs entered here. Note; REM-1.2, REM-1.4 etc. are only for GitHub commits and pushing, never named here.
+# Remediations log
 
-## REM-1
-- Create project
-- Initialize Git repo (Will use GitHub to reflect)
-- Define project goals
-- Support PE fiiles
-## REM-2
-- Detect executable type
-- Extract strings
-## REM-3
-- Fixed 'main.py'
-- Added automatic logging to 'logs/strings.txt'
-- Attempts to output the first 20 strings for reading
-- 'extract_strings(file_path)'
-- Tested on Windows
-## REM-4
-- Fixed 'main.py' with adding string function, removed a repeated 'def' 
-- Made the output for the first 10 strings to print successfully
-## REM-2
-- Updated entropy.py
-- Fixed and reorganized main.py
-- Updated indicators.py for returning
-## REM-3
-- Ability to use AI to improve workflow, productivity, knowledge, and skills.
-Core Logic & Feature Additions
-- Integrated LIEF Library: Added lief to indicators.py to enable deep inspection of binary import tables for both ELF and PE formats.
-Implemented Behavioral Scoring:
-- Added SUSPICIOUS_IMPORTS dictionary to indicators.py to assign weight to sensitive API calls (e.g., WriteProcessMemory, CreateRemoteThread).
-- Added calculate_suspicion_score function to quantify the potential risk of a binary based on its imported functions.
-Enhanced Entropy Reporting:
-- Updated entropy.py with entropy_verdict(e) to provide human-readable risk assessments (NORMAL vs. HIGH) based on Shannon entropy values.
-- Improved calculate_entropy to handle file paths directly, reducing memory overhead in main.py.
-Bug Fixes & Maintenance
-- Resolved NameError in pe_parser.py: Removed the undefined imports reference in the return dictionary that previously caused crashes during PE analysis.
-- Fixed Memory Handling: Streamlined how main.py passes file references to sub-modules to prevent redundant loading of large binary data into memory.
-- Standardized Imports: Synchronized function naming across main.py and indicators.py (e.g., transitioning to calculate_suspicion_score).
-UI & UX Improvements
-- Cleaned main.py Output:
-- Reorganized the analysis flow into distinct sections: File Info, Import Analysis, Entropy Analysis, and Suspicious Indicators.
-- Added warning flags [!] for high-entropy results and suspicious string matches.
-- Implemented a "Total Suspicion Score" display to provide a quick behavioral snapshot.
-Next goals:
-- Implement a logging system to export these findings to a JSON or Text report for automated batch processing.
-- Create a new module hasher.py that calculates the MD5, SHA-1, and SHA-256 of the target binary.
-- Add a flag to main.py (e.g., --export) that saves the entire analysis output into a structured format like a .json file or a formatted .txt report in a reports/ folder.
-## REM-4
-- Added a new CLI interface with --json and --max-strings options so analysis can be used in scripts/automation and tuned for different verbosity needs.
-- Refactored output generation to build one structured results object, then render either human-readable text or JSON, making behavior more consistent and easier to extend.
-- Improved resilience when lief is not installed: the tool now starts normally and reports a clear import-analysis dependency message instead of crashing at startup.
--Added executable packaging support with PyInstaller and validated the generated binary-analyzer.exe end-to-end in both human-readable and --json modes on real Windows binaries.
-- Improved dependency handling for LIEF so the tool no longer hard-crashes when the library is unavailable, and now reports a clear import-analysis status in output.
-- Fixed import extraction compatibility across LIEF API variants, enabling successful PE import parsing (verified with real sample output showing non-zero import counts).
-- Added build reproducibility and packaging workflow artifacts by pinning dependencies in analyzer/requirements.txt, introducing a one-command Windows build script (analyzer/build.bat), and documenting EXE build/run steps in README.md.
-- Improved release hygiene and repository cleanliness by adding .gitignore rules for virtual environment files, Python cache files, and PyInstaller build outputs (analyzer/build/, analyzer/dist/, analyzer/*.spec).
-## REM-5
-- Implemented Phase 1 quarantine isolation flow with new CLI flags (`--auto-isolate`, `--isolate-threshold`, `--quarantine-dir`) to move suspicious files into controlled manual-review storage.
-- Added SHA-256 hashing and isolation manifest logging (`manifest.jsonl`) so each isolation event records when/why a file was quarantined, file hash, score, and original path for auditability.
-- Implemented Phase 2 manual-review operations with `--list-quarantine` and `--restore <sha256_prefix>` to inspect isolated artifacts and safely restore them to their original locations.
-- Implemented Phase 3 operations with `--delete-from-quarantine` and `--export-manifest-csv` to support cleanup and reporting workflows for analysts.
-- Added risk-level tagging (`LOW`, `MEDIUM`, `HIGH`) to analysis results to provide faster triage decisions in both human-readable and JSON output modes.
-- Added synthetic binary test samples in `test-sample/` (benign + suspicious) to quickly validate detection behavior and quarantine workflows during development.
-## REM-3
-- Refactored the CLI entry path: `main.py` now delegates to `cli.py`, with analysis logic in `analysis.py`, quarantine/manifest/CSV helpers in `quarantine.py`, and risk helpers in `risk.py` for easier maintenance and testing.
-- Extended auto-isolation with combined triggers: `--isolate-on-risk {LOW,MEDIUM,HIGH}` (isolate when computed risk meets or exceeds the chosen band) and `--keyword-isolate-threshold N` (isolate when suspicious string hit count is at least N; `0` disables). Any matching rule together with `--auto-isolate` can quarantine a file; the manifest records the full trigger reason string.
-- Enriched analysis results with `suspicious_indicators_total` and `suspicious_indicators_all` so triage and manifests use full keyword coverage, not only the preview slice.
-- Added a `tests/` suite (pytest) covering risk classification, file-type detection, mocked `build_results`, manifest parsing/CSV export, and isolation trigger composition; added `requirements-dev.txt` and documented `python -m pytest tests/` in README.md.
-- Added GitHub Actions workflow `.github/workflows/tests.yml` (Windows, Python 3.12) to install dependencies and run the test suite on push/PR to `main`.
-- Updated quarantine CSV export to include a `risk_level` column for manifest rows; ignored `.pytest_cache/` in `.gitignore`.
-## REM-4
+Development milestones for **binary-analyzer**. Use `REM-N` for major updates in this file. Sub-versions such as `REM-1.2` are for Git commit messages only — not listed here.
+
+---
+
+## REM-1 — Project bootstrap
+
+- Created project and initialized Git (GitHub remote)
+- Defined goals: static analysis for executable files
+- Initial PE support
+
+## REM-2 — Core extraction
+
+- Executable type detection (PE / ELF magic bytes)
+- Printable string extraction
+- Entropy module and indicators scaffolding
+
+## REM-3 — CLI refactor and scoring
+
+- Split monolithic `main.py` into `cli.py`, `analysis.py`, `quarantine.py`, `risk.py`
+- Integrated LIEF for PE/ELF import tables
+- Suspicious import weights and `calculate_suspicion_score`
+- Entropy verdicts (NORMAL / MEDIUM / HIGH)
+- Structured `build_results()` dict; human and JSON output modes
+- `--json`, `--max-strings`; resilient behavior when LIEF is missing
+- Risk levels: LOW / MEDIUM / HIGH
+- `suspicious_indicators_total` and `suspicious_indicators_all` for full keyword coverage
+- PyInstaller packaging (`build.py`, `build.bat`, `build.sh`) and release docs
+
+## REM-4 — Rules, tests, and CI
+
+- Configurable rules: `default_rules.json`, merge semantics, `--rules`, `BINARY_ANALYZER_RULES`
+- `tests/` suite (pytest) and `.github/workflows/tests.yml`
+- Extended isolation triggers: `--isolate-on-risk`, `--keyword-isolate-threshold`
+- Quarantine CSV export includes `risk_level`
+
+## REM-5 — Quarantine workflow
+
+- Phase 1: `--auto-isolate`, `--isolate-threshold`, `--quarantine-dir`, SHA-256 manifest (`manifest.jsonl`)
+- Phase 2: `--list-quarantine`, `--restore <sha256_prefix>`
+- Phase 3: `--delete-from-quarantine`, `--export-manifest-csv`
+- Synthetic samples in `test-sample/` (benign + suspicious)
+
+## REM-6 — GUI and dual-binary releases
+
+- CustomTkinter HUD (`gui.py`): analyze, isolate, copy JSON, save report, load rules
+- `python -m binary_analyzer --gui` and `binary-analyzer-gui` entry point
+- CI builds CLI + GUI on Windows and Linux; tag-based GitHub Releases
+- Drag-and-drop via optional `tkinterdnd2`
+
+## REM-7 — Documentation hygiene (Tier 1)
+
+- Stop tracking `*.egg-info/` in git; document architecture in `docs/architecture.md`
+- README fixes: TOC numbering, real clone URL, project structure, `--gui` in CLI reference
+- Reorganized this remediations log and backlog section below
+
+---
+
+## Backlog
+
+Open items not yet implemented. Pick up in future REM entries.
+
+| Item | Notes |
+|------|--------|
+| CLI `--output` / `--export` | Write analysis JSON (and optional text report) to a file path for batch/SOAR pipelines |
+| Extra hashes (MD5, SHA-1) | Optional `file_info` fields; SHA-256 already present |
+| ELF section metadata | Symmetric `elf_info` in results (PE has `pe_info` today) |
+| Integration tests | Exercise `test-sample/bad_sample.bin` and `good_sample.bin` in pytest |
+| Linux CI for tests | Extend `tests.yml` beyond `windows-latest` |
+| Streaming entropy/strings | Reduce memory use on large binaries |
+| Import score deduplication | Score unique matched imports, not repeated symbol occurrences |
+
+### Historical notes (superseded)
+
+- `logs/strings.txt` auto-logging — removed with CLI refactor; use `--json` or GUI Save Report
+- `analyzer/requirements.txt` — replaced by `pyproject.toml` optional extras (`[dev]`, `[gui]`)
+- `requirements-dev.txt` — dev deps live in `pyproject.toml` `[project.optional-dependencies]`

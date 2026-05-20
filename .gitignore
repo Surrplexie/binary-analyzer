@@ -9,3 +9,4 @@ _entry.py
 _entry_gui.py
 
 .pytest_cache/
+*.egg-info/
