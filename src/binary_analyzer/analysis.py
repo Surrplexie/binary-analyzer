@@ -1,12 +1,15 @@
 import os
+import tempfile
 from typing import TYPE_CHECKING, Optional
 
 from .string_extractor import extract_strings
 from .entropy import calculate_entropy, entropy_verdict
 from .pe_parser import parse_pe
 from .indicators import find_suspicious_strings, get_imports, calculate_suspicion_score
+from .packer import detect_packers, pick_unpack_target
 from .quarantine import sha256_file
 from .risk import classify_risk_level
+from .unpackers import attempt_unpack
 
 if TYPE_CHECKING:
     from .rules import AnalysisRules
@@ -90,4 +93,98 @@ def build_results(file_path, max_strings, rules: Optional["AnalysisRules"] = Non
             "reason": None,
             "error": None,
         },
+    }
+
+
+def build_comparison(before: dict, after: dict) -> dict:
+    before_imports = set(before["imports"]["matched_suspicious"])
+    after_imports = set(after["imports"]["matched_suspicious"])
+
+    return {
+        "sha256_changed": before["file_info"]["sha256"] != after["file_info"]["sha256"],
+        "size_delta_bytes": after["file_info"]["size_bytes"] - before["file_info"]["size_bytes"],
+        "entropy_delta": round(after["entropy"]["score"] - before["entropy"]["score"], 4),
+        "imports_count_before": before["imports"]["count"],
+        "imports_count_after": after["imports"]["count"],
+        "imports_added": sorted(after_imports - before_imports),
+        "imports_removed": sorted(before_imports - after_imports),
+        "risk_before": before["risk"]["level"],
+        "risk_after": after["risk"]["level"],
+        "risk_changed": before["risk"]["level"] != after["risk"]["level"],
+        "suspicious_indicators_before": before["suspicious_indicators_total"],
+        "suspicious_indicators_after": after["suspicious_indicators_total"],
+        "suspicious_indicators_delta": (
+            after["suspicious_indicators_total"] - before["suspicious_indicators_total"]
+        ),
+    }
+
+
+def build_results_with_unpack(
+    file_path,
+    max_strings,
+    rules: Optional["AnalysisRules"] = None,
+    *,
+    detect_packers_flag: bool = True,
+    unpack: bool = False,
+    unpack_output_dir: Optional[str] = None,
+):
+    """Analyze a binary, optionally detect packers and unpack for before/after comparison."""
+    before = build_results(file_path, max_strings, rules)
+
+    matches = []
+    if detect_packers_flag:
+        all_strings = extract_strings(file_path)
+        matches = detect_packers(
+            file_path,
+            pe_info=before.get("pe_info"),
+            strings=all_strings,
+            entropy=before["entropy"]["score"],
+        )
+
+    unpack_info = {
+        "attempted": False,
+        "performed": False,
+        "method": None,
+        "packer": None,
+        "output_path": None,
+        "sha256": None,
+        "error": None,
+    }
+
+    after = None
+    comparison = None
+    output_dir = unpack_output_dir
+    owns_temp_dir = False
+
+    if unpack:
+        target = pick_unpack_target(matches)
+        if target is None:
+            unpack_info["error"] = "no supported packer detected to unpack"
+        else:
+            if output_dir is None:
+                output_dir = tempfile.mkdtemp(prefix="binary-analyzer-unpack-")
+                owns_temp_dir = True
+
+            unpack_info["attempted"] = True
+            result = attempt_unpack(target.name, file_path, output_dir)
+            unpack_info.update(result.to_dict())
+
+            if result.performed and result.output_path:
+                after = build_results(result.output_path, max_strings, rules)
+                comparison = build_comparison(before, after)
+
+    packer_block = {
+        "detected": [m.to_dict() for m in matches],
+        "unpack": unpack_info,
+        "temp_output_dir": output_dir if owns_temp_dir else None,
+    }
+
+    return {
+        "file_path": file_path,
+        "packer": packer_block,
+        "analysis": {
+            "before": before,
+            "after": after,
+        },
+        "comparison": comparison,
     }

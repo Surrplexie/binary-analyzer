@@ -3,7 +3,7 @@ import json
 import os
 import sys
 
-from .analysis import build_results
+from .analysis import build_results, build_results_with_unpack
 from .rules import load_effective_rules, RULES_ENV_VAR
 from .quarantine import (
     append_manifest,
@@ -98,6 +98,22 @@ def parse_args():
         help=f"JSON rules file (import weights, string keywords, risk bands). "
         f"Overrides {RULES_ENV_VAR} when set.",
     )
+    parser.add_argument(
+        "--detect-packers",
+        action="store_true",
+        help="Detect common executable packers (UPX first) and include results in output",
+    )
+    parser.add_argument(
+        "--unpack",
+        action="store_true",
+        help="Attempt to unpack detected packers, re-hash, and produce a before/after report",
+    )
+    parser.add_argument(
+        "--unpack-output",
+        default=None,
+        metavar="DIR",
+        help="Directory for unpacked dumps (default: temporary directory)",
+    )
     return parser.parse_args()
 
 
@@ -172,6 +188,74 @@ def print_human_results(results, max_strings):
             print(f"Isolation failed: {results['isolation']['error']}")
 
 
+def print_packer_results(results):
+    packer = results.get("packer")
+    if not packer:
+        return
+
+    section("Packer Detection")
+    detected = packer.get("detected", [])
+    if not detected:
+        print("No known packers detected.")
+    else:
+        for match in detected:
+            signals = ", ".join(match["signals"])
+            print(f"[!] {match['name']} ({match['confidence']} confidence) — {signals}")
+
+    unpack = packer.get("unpack", {})
+    if unpack.get("attempted") or unpack.get("error"):
+        section("Unpack")
+        if unpack.get("performed"):
+            print(f"Method: {unpack['method']}")
+            print(f"Output: {unpack['output_path']}")
+            print(f"Unpacked SHA256: {unpack['sha256']}")
+        elif unpack.get("attempted"):
+            print(f"Unpack failed: {unpack.get('error')}")
+        elif unpack.get("error"):
+            print(unpack["error"])
+
+
+def print_comparison_results(comparison):
+    if not comparison:
+        return
+
+    section("Before / After Comparison")
+    print(f"SHA256 changed: {comparison['sha256_changed']}")
+    print(f"Size delta: {comparison['size_delta_bytes']:+d} bytes")
+    print(f"Entropy delta: {comparison['entropy_delta']:+.2f}")
+    print(f"Risk: {comparison['risk_before']} -> {comparison['risk_after']}")
+    print(
+        "Suspicious indicators: "
+        f"{comparison['suspicious_indicators_before']} -> "
+        f"{comparison['suspicious_indicators_after']} "
+        f"({comparison['suspicious_indicators_delta']:+d})"
+    )
+    if comparison["imports_added"]:
+        print("Imports added (suspicious matches):")
+        for item in comparison["imports_added"]:
+            print(f"  + {item}")
+    if comparison["imports_removed"]:
+        print("Imports removed (suspicious matches):")
+        for item in comparison["imports_removed"]:
+            print(f"  - {item}")
+
+
+def print_human_unpack_results(results, max_strings):
+    before = results["analysis"]["before"]
+    print_human_results(before, max_strings)
+    print_packer_results(results)
+    print_comparison_results(results.get("comparison"))
+    after = results["analysis"].get("after")
+    if after:
+        section("After Unpack Analysis")
+        print(f"File: {after['file_path']}")
+        print(f"Size: {after['file_info']['size_bytes']} bytes")
+        print(f"SHA256: {after['file_info']['sha256']}")
+        print(f"Risk: {after['risk']['level']}")
+        print(f"Entropy: {after['entropy']['score']:.2f} ({after['entropy']['status']})")
+        print(f"Imports: {after['imports']['count']}")
+
+
 def main():
     args = parse_args()
     file_path = args.binary_file
@@ -239,22 +323,45 @@ def main():
         print(f"Error: File '{file_path}' does not exist")
         sys.exit(1)
 
-    results = build_results(file_path, max_strings, rules=load_effective_rules(cli_path=args.rules))
+    rules = load_effective_rules(cli_path=args.rules)
+    use_packer_pipeline = args.detect_packers or args.unpack
+
+    if use_packer_pipeline:
+        results = build_results_with_unpack(
+            file_path,
+            max_strings,
+            rules=rules,
+            detect_packers_flag=True,
+            unpack=args.unpack,
+            unpack_output_dir=args.unpack_output,
+        )
+        analysis_for_isolation = results["analysis"]["before"]
+    else:
+        results = build_results(file_path, max_strings, rules=rules)
+        analysis_for_isolation = results
+
     if args.auto_isolate:
-        should, reason = isolation_triggers(args, results)
+        should, reason = isolation_triggers(args, analysis_for_isolation)
         if should:
             isolation_result = isolate_file(
                 file_path=file_path,
                 quarantine_dir=args.quarantine_dir,
-                sha256_hex=results["file_info"]["sha256"],
+                sha256_hex=analysis_for_isolation["file_info"]["sha256"],
                 trigger_reason=reason,
             )
-            results["isolation"] = isolation_result
+            if use_packer_pipeline:
+                results["analysis"]["before"]["isolation"] = isolation_result
+            else:
+                results["isolation"] = isolation_result
             manifest_path = os.path.join(args.quarantine_dir, "manifest.jsonl")
-            append_manifest(manifest_path, results, isolation_result, reason)
+            append_manifest(manifest_path, analysis_for_isolation, isolation_result, reason)
 
     if args.as_json:
         print(json.dumps(results, indent=2))
+        return
+
+    if use_packer_pipeline:
+        print_human_unpack_results(results, max_strings)
         return
 
     print_human_results(results, max_strings)
